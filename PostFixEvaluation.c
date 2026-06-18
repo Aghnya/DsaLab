@@ -1,150 +1,103 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <string.h>
 
 typedef struct stack {
-    int top;
-    int MS;
-    int *a;	
+   int *a;
+   int top;
+   int ms;
 } ST;
 
-void init(ST *p, int size) {
-    p->MS = size;
-    p->top = -1;
-    p->a = (int*)malloc(sizeof(int) * p->MS);
+void init(ST *p, int n) {
+   p->ms = n;
+   p->top = -1;
+   p->a = (int*)malloc(sizeof(int) * n);
 }
 
-int overflow(ST *p) {
-    return (p->top == p->MS - 1);
-}
-
-int underflow(ST *p) {
-    return (p->top == -1); 
+void push(ST *p, int item) {
+   if(p->top + 1 >= p->ms) {
+        printf("\nError: Stack Overflow!\n");
+        exit(1);
+   }
+   (p->top)++;
+   p->a[p->top] = item;
 }
 
 int pop(ST *p) {
-    if(underflow(p)) {
-        return 0;  
-    }
-    return p->a[p->top--]; 
+   if(p->top <= -1) {
+       printf("\nError: Invalid postfix expression! Too many operators.\n");
+       exit(1);
+   }
+   int b = p->a[p->top];
+   p->top--;
+   return b;
 }
 
-void push(ST *p, int n) {
-    if(overflow(p)) {
-        printf("Stack full\n");
-        return; 
-    }
-    p->a[++p->top] = n;
+int isOperand(char ch) {
+    return (ch >= '0' && ch <= '9');
 }
 
-int isValidPostfix(const char *post) {
-    int operand_count = 0;
-    int i = 0;
+int isOperator(char ch) {
+    return ch == '+' || ch == '-' || ch == '*' || ch == '/';
+}
 
-    while (post[i] != '\0') {
-        if (isspace(post[i])) {
-            i++;
-            continue;
+void evalPostfix() {
+    char post[100];
+    printf("Enter Postfix expression: ");
+    scanf("%s", post);
+
+    int len = 0;
+    while(post[len] != '\0') len++;
+
+    ST s;
+    init(&s, len + 1);
+
+    for(int i = 0; post[i] != '\0'; i++) {
+        char ch = post[i];
+
+        if(isOperand(ch)) {
+            push(&s, ch - '0');
         }
-
-        if (isdigit(post[i])) {
-            operand_count++;
-            while (isdigit(post[i])) {
-                i++;
+        else if(isOperator(ch)) {
+            if(s.top < 1) {
+                printf("\nError: Invalid postfix expression! Not enough operands for operator '%c'.\n", ch);
+                exit(1);
             }
-            continue; 
-        } 
-        else if (strchr("+-*/^", post[i])) {
-            if (operand_count < 2) return 0; 
-            
-            operand_count--; 
-        } 
-        else {
-            return 0; 
-        }
-        i++;
-    }
-    
-    return (operand_count == 1);
-}
+            int x = pop(&s);
+            int y = pop(&s);
+            int z;
 
-void post_eval(const char post[]) {
-    ST s; 
-    int i = 0, x, y, z;
-    
-    init(&s, strlen(post) + 1);
-    
-    while(post[i] != '\0') {
-        if (isspace(post[i])) {
-            i++;
-            continue;
-        }
-        
-        if (isdigit(post[i])) {
-            int num = 0;
-            while (isdigit(post[i])) {
-                num = (num * 10) + (post[i] - '0');
-                i++;
-            }
-            push(&s, num);
-            continue; 
-        }
-        else {
-            x = pop(&s); 
-            y = pop(&s); 
-            
-            switch(post[i]) {
-                case '+':    
-                    z = y + x; 
-                    push(&s, z); 
-                    break; 
-                case '-':   
-                    z = y - x;
-                    push(&s, z);
-                    break; 
-                case '*':   
-                    z = y * x; 
-                    push(&s, z);
-                    break; 
-                case '/':  
-                    if (x == 0) {
-                        printf("Error: Mathematical Division by Zero.\n");
-                        free(s.a);
-                        return;
+            switch(ch) {
+                case '+': z = y + x; break;
+                case '-': z = y - x; break;
+                case '*': z = y * x; break;
+                case '/': 
+                    if(x == 0) {
+                        printf("\nError: Division by zero!\n");
+                        exit(1);
                     }
-                    z = y / x;
-                    push(&s, z);
-                    break; 
+                    z = y / x; 
+                    break;
             }
-            i++;
+            push(&s, z);
+        }
+        else {
+            printf("\nError: Invalid character '%c' encountered.\n", ch);
+            exit(1);
         }
     }
-    
-    printf("Final value = %d\n", pop(&s)); 
-    free(s.a); 
+
+    int res = pop(&s);
+
+    if(s.top != -1) {
+        printf("\nError: Invalid postfix expression! Too many operands left over.\n");
+        exit(1);
+    }
+
+    printf("Evaluated value = %d\n", res);
+    free(s.a);
 }
 
 int main() {
-    char post;		
-    
-    printf("\nEnter postfix notation: ");
-    if (fgets(post, sizeof(post), stdin) != NULL) {
-        
-        post[strcspn(post, "\n")] = 0;
-
-        if (strlen(post) == 0) {
-            printf("Error: Empty expression.\n");
-            return 1;
-        }
-
-        if (isValidPostfix(post)) {
-            post_eval(post);
-        } else {
-            printf("Error: Invalid postfix expression.\n");
-            printf("Ensure operands and operators are correct, and no parentheses exist.\n");
-        }
-    }
-    
+    evalPostfix();
     return 0;
 }
