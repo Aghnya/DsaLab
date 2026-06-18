@@ -1,165 +1,142 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <string.h>
 
-typedef struct stack{
-    char *a;
-    int top;
-    int ms;
-}ST;
+typedef struct stack {
+   char *a;
+   int top;
+   int ms;
+} ST;
 
-void init(ST *p){
-    int n;
-    printf("Enter the size of stack: ");
-    scanf("%d",&n);
+void init(ST *p, int n) {
+   p->ms = n;
+   p->top = -1;
+   p->a = (char*)malloc(sizeof(char) * n);
+}
 
-    p->ms=n;
-    p->top=-1;
-    p->a=(char*)malloc(sizeof(char)*n);
-
-    if(p->a==NULL){
-        printf("Memory allocation failed\n");
+void push(ST *p, char item) {
+   if(p->top + 1 >= p->ms) {
+        printf("\nError: Stack Overflow!\n");
         exit(1);
-    }
+   }
+   (p->top)++;
+   p->a[p->top] = item;
 }
 
-void push(ST *p,char item){
-    if(p->top+1 >= p->ms){
-        printf("Stack Full\n");
-        return;
-    }
-
-    p->a[++(p->top)] = item;
+char pop(ST *p) {
+   if(p->top <= -1) {
+       return '\0'; 
+   }
+   char b = p->a[p->top];
+   p->top--;
+   return b;
 }
 
-int pop(ST *p){
-    if(p->top==-1){
-        return -1;
-    }
-
-    return p->a[(p->top)--];
+char peek(ST *p) {
+   if(p->top <= -1) return '\0';
+   return p->a[p->top];
 }
 
-int underflow(ST *p){
-    return p->top==-1;
+int isOperand(char ch) {
+    return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
 }
 
-int isOperator(char c){
-    return (c=='+' || c=='-' || c=='*' || c=='/' || c=='^');
+int isOperator(char ch) {
+    return ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '^';
 }
 
-int precedence(char c){
-    if(c=='^')
-        return 3;
-    else if(c=='*' || c=='/')
-        return 2;
-    else if(c=='+' || c=='-')
-        return 1;
+int precedence(char ch) {
+    if (ch == '^') return 3;
+    if (ch == '*' || ch == '/') return 2;
+    if (ch == '+' || ch == '-') return 1;
     return 0;
 }
 
-void convert(ST *p,char in[],char post[]){
-
-    int n=strlen(in);
-
-    if(n==0){
-        printf("Empty Expression\n");
-        return;
-    }
-
-    /* Expression should not start or end with operator */
-    if(isOperator(in[0]) || isOperator(in[n-1])){
-        printf("Invalid Expression\n");
-        return;
-    }
-
-    /* Consecutive operators check */
-    for(int i=0;i<n-1;i++){
-        if(isOperator(in[i]) && isOperator(in[i+1])){
-            printf("Invalid Expression\n");
-            return;
-        }
-    }
-
-    int j=0;
-
-    for(int i=0;i<n;i++){
-
-        char c=in[i];
-
-        if(c==' ' || c=='\t')
-            continue;
-
-        if(isalnum(c)){
-            post[j++]=c;
-        }
-
-        else if(c=='('){
-            push(p,c);
-        }
-
-        else if(c==')'){
-
-            while(!underflow(p) && p->a[p->top]!='('){
-                post[j++]=(char)pop(p);
-            }
-
-            if(underflow(p)){
-                printf("Invalid Expression\n");
-                return;
-            }
-
-            pop(p);
-        }
-
-        else if(isOperator(c)){
-
-            while(!underflow(p) &&
-                  p->a[p->top]!='(' &&
-                  precedence(p->a[p->top]) >= precedence(c))
-            {
-                post[j++]=(char)pop(p);
-            }
-
-            push(p,c);
-        }
-
-        else{
-            printf("Invalid Character Found\n");
-            return;
-        }
-    }
-
-    while(!underflow(p)){
-
-        if(p->a[p->top]=='('){
-            printf("Invalid Expression\n");
-            return;
-        }
-
-        post[j++]=(char)pop(p);
-    }
-
-    post[j]='\0';
-
-    printf("Postfix Expression : %s\n",post);
-}
-
-int main(){
-
-    ST s;
+void convertInfixToPostfix() {
     char infix[100];
     char postfix[100];
+    
+    printf("Enter Infix expression: ");
+    scanf("%s", infix);
 
-    init(&s);
+    int len = 0;
+    while(infix[len] != '\0') len++;
 
-    printf("Enter infix expression: ");
-    scanf("%s",infix);
+    ST s;
+    init(&s, len + 1);
 
-    convert(&s,infix,postfix);
+    int pIdx = 0;           
+    int expectOperand = 1;  
 
-    free(s.a);
+    for(int i = 0; infix[i] != '\0'; i++) {
+        char ch = infix[i];
 
+        if(isOperand(ch)) {
+            if (!expectOperand) {
+                printf("\nError: Invalid expression! Missing operator between operands.\n");
+                exit(1);
+            }
+            postfix[pIdx++] = ch;
+            expectOperand = 0; 
+        }
+        else if(ch == '(') {
+            push(&s, ch);
+        }
+        else if(ch == ')') {
+            if (expectOperand) {
+                printf("\nError: Invalid expression! Unexpected closing parenthesis.\n");
+                exit(1);
+            }
+            
+            char temp = pop(&s);
+            while(temp != '\0' && temp != '(') {
+                postfix[pIdx++] = temp;
+                temp = pop(&s);
+            }
+            
+            if(temp == '\0') {
+                printf("\nError: Invalid expression! Mismatched parentheses (too many right brackets).\n");
+                exit(1);
+            }
+        }
+        else if(isOperator(ch)) {
+            if (expectOperand) {
+                printf("\nError: Invalid expression! Misplaced operator '%c'.\n", ch);
+                exit(1);
+            }
+            
+            while(s.top != -1 && precedence(peek(&s)) >= precedence(ch)) {
+                postfix[pIdx++] = pop(&s);
+            }
+            push(&s, ch);
+            expectOperand = 1; 
+        }
+        else {
+            printf("\nError: Invalid character '%c' encountered.\n", ch);
+            exit(1);
+        }
+    }
+
+    if (expectOperand) {
+        printf("\nError: Invalid expression! Cannot end with an operator.\n");
+        exit(1);
+    }
+
+    while(s.top != -1) {
+        char temp = pop(&s);
+        if(temp == '(') {
+            printf("\nError: Invalid expression! Mismatched parentheses (too many left brackets).\n");
+            exit(1);
+        }
+        postfix[pIdx++] = temp;
+    }
+
+    postfix[pIdx] = '\0'; 
+    printf("Corresponding Postfix expression: %s\n", postfix);
+    
+    free(s.a); 
+}
+
+int main() {
+    convertInfixToPostfix();
     return 0;
 }
